@@ -46,6 +46,7 @@ table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border-bottom:1p
     <p class="sub">Sign in with token. Admin = full access. Operator = start and stop only.</p>
     <label class="sub" for="loginToken" style="margin-bottom:6px;display:block">Access Token</label>
     <input id="loginToken" class="input mono" placeholder="admin_xxxxx or usr_xxxxx" autocomplete="off" />
+    <div id="loginError" style="display:none;margin-top:8px;color:#ff98a2;font-size:13px;"></div>
     <div style="margin-top:12px"><button id="btnLogin" class="btn primary" style="width:100%">Sign In</button></div>
     <p class="sub" style="margin-top:12px;font-size:13px">If this is first run, the initial admin token appears in server logs.</p>
   </div>
@@ -225,10 +226,11 @@ const statusCls=s=>s==="online"?"online":s==="connecting"?"connecting":(s==="err
 const tone=s=>s==="online"?"ok":s==="connecting"?"warn":(s==="error"||s==="offline"||s==="stopped")?"bad":"";
 const has=p=>auth.permissions.includes(p);
 function note(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._tm);t._tm=setTimeout(()=>t.classList.remove("show"),2600)}
+function setLoginError(msg){const e=$("loginError");if(!e)return;if(msg){e.textContent=msg;e.style.display="block"}else{e.style.display="none";e.textContent=""}}
 function setSession(t){auth.sessionToken=t;localStorage.setItem("ag_session",t)}
 function clearSession(){auth.sessionToken="";auth.user=null;auth.permissions=[];localStorage.removeItem("ag_session")}
 function showLogin(){$("loginView").classList.remove("hidden");$("appView").classList.add("hidden")}
-function showApp(){$("loginView").classList.add("hidden");$("appView").classList.remove("hidden")}
+function showApp(){setLoginError("");$("loginView").classList.add("hidden");$("appView").classList.remove("hidden")}
 function wsLabel(ok){const e=$("pillWs");e.textContent=ok?"socket live":"socket reconnect";e.className=`pill ${ok?"ok":"warn"}`}
 async function api(path,opt={}){const h={};if(auth.sessionToken)h.Authorization=`Bearer ${auth.sessionToken}`;if(opt.body!==undefined)h["Content-Type"]="application/json";const r=await fetch(path,{method:opt.method||"GET",headers:h,body:opt.body!==undefined?JSON.stringify(opt.body):undefined});let d={};try{d=await r.json()}catch{}if(!r.ok){if(r.status===401)unauth("Please sign in again");throw new Error(d.message||`${r.status} ${r.statusText}`)}return d}
 function unauth(msg){closeSocket();clearSession();showLogin();note(msg||"Session expired")}
@@ -243,7 +245,7 @@ function addLog(e){rt.logs.push(e);if(rt.logs.length>500)rt.logs.shift();const t
 function drawLogs(){$("terminal").innerHTML="";const copy=[...rt.logs];rt.logs=[];copy.forEach(addLog)}
 function closeSocket(){if(rt.wsRetry){clearTimeout(rt.wsRetry);rt.wsRetry=null}if(rt.ws){rt.ws.onclose=null;rt.ws.close();rt.ws=null}wsLabel(false)}
 function connectSocket(){closeSocket();if(!auth.sessionToken)return;const proto=location.protocol==="https:"?"wss":"ws";rt.ws=new WebSocket(`${proto}://${location.host}?session=${encodeURIComponent(auth.sessionToken)}`);rt.ws.onopen=()=>wsLabel(true);rt.ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch{return}if(m.type==="init"){rt.logs=Array.isArray(m.data.logs)?m.data.logs.slice(-500):[];const p={...m.data};delete p.logs;applyState(p);drawLogs();if(m.data.user&&m.data.permissions)authApply(m.data.user,m.data.permissions)}if(m.type==="status")applyState(m.data||{});if(m.type==="log")addLog(m.data);if(m.type==="error")note(m.data?.message||"Socket error")};rt.ws.onclose=e=>{wsLabel(false);if(e.code===4001){unauth("Session expired");return}if(!auth.sessionToken)return;rt.wsRetry=setTimeout(connectSocket,2000)}}
-async function login(){const token=$("loginToken").value.trim();if(!token){note("Enter token first");return}try{const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token})});const p=await r.json();if(!r.ok||!p.success)throw new Error(p.message||"Login failed");setSession(p.sessionToken);authApply(p.user,p.permissions);showApp();await refreshStatus();connectSocket();if(has("users:read"))loadUsers();note(`Welcome ${p.user.name}`)}catch(e){note(e.message||"Login failed")}}
+async function login(){const token=$("loginToken").value.trim();const b=$("btnLogin");setLoginError("");if(!token){setLoginError("اكتب التوكن أول.");note("Enter token first");return}const old=b.textContent;b.disabled=true;b.textContent="Signing in...";try{const r=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token})});const p=await r.json();if(!r.ok||!p.success)throw new Error(p.message||"Login failed");setSession(p.sessionToken);authApply(p.user,p.permissions);showApp();await refreshStatus();connectSocket();if(has("users:read"))loadUsers();note(`Welcome ${p.user.name}`)}catch(e){const m=e.message||"Login failed";setLoginError(`فشل تسجيل الدخول: ${m}`);note(m)}finally{b.disabled=false;b.textContent=old}}
 async function logout(){try{if(auth.sessionToken)await api("/api/auth/logout",{method:"POST"})}catch{}closeSocket();clearSession();showLogin();note("Logged out")}
 async function refreshStatus(){const p=await api("/api/status");applyState(p)}
 async function runAction(a){if(!has("bot:control")){note("No bot control permission");return}try{const r=await api(`/api/${a}`,{method:"POST"});if(!r.success)note(r.message||`Cannot ${a}`);else note(`${a} command sent`)}catch(e){note(e.message||`Failed to ${a}`)}}
