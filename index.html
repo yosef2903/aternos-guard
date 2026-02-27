@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Aternos Guard — 24/7 Uptime Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg0:       #080c10;
+    --bg1:       #0d1117;
+    --bg2:       #161b22;
+    --bg3:       #1f2937;
+    --border:    #30363d;
+    --border2:   #21262d;
+    --green:     #39d353;
+    --green-dim: #1a6b2a;
+    --cyan:      #58d6f5;
+    --cyan-dim:  #1a4a5c;
+    --yellow:    #e3b341;
+    --red:       #f85149;
+    --red-dim:   #5c1a1a;
+    --purple:    #a371f7;
+    --text:      #e6edf3;
+    --text2:     #8b949e;
+    --text3:     #484f58;
+    --mono:      'JetBrains Mono', monospace;
+    --display:   'Rajdhani', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; background:var(--bg0); color:var(--text); font-family:var(--mono); overflow:hidden; }
+
+  /* ── SCAN LINES OVERLAY ── */
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:9999;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.07) 2px, rgba(0,0,0,.07) 4px);
+  }
+
+  /* ── GRID NOISE BACKGROUND ── */
+  body::after {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(57,211,83,.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57,211,83,.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .app { display:flex; flex-direction:column; height:100vh; position:relative; z-index:1; }
+
+  /* ── HEADER ── */
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0 24px; height:56px;
+    background:var(--bg1);
+    border-bottom: 1px solid var(--border2);
+    flex-shrink:0;
+  }
+  .logo {
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--display); font-size:22px; font-weight:700; letter-spacing:2px;
+    color:var(--green);
+    text-shadow: 0 0 20px rgba(57,211,83,.4);
+  }
+  .logo-icon { width:28px; height:28px; }
+  .logo span { color:var(--text2); font-weight:400; }
+
+  .header-status {
+    display:flex; align-items:center; gap:20px;
+  }
+  .server-badge {
+    font-size:11px; color:var(--text2); letter-spacing:.5px;
+    padding:4px 10px; border:1px solid var(--border); border-radius:4px;
+    background:var(--bg2);
+  }
+  .server-badge b { color:var(--cyan); }
+
+  /* ── NAV ── */
+  nav {
+    display:flex; gap:2px; padding:0 24px;
+    background:var(--bg1); border-bottom:1px solid var(--border2);
+    flex-shrink:0;
+  }
+  .nav-tab {
+    padding:10px 18px; font-size:12px; font-weight:500; letter-spacing:.8px;
+    text-transform:uppercase; cursor:pointer; border:none; background:transparent;
+    color:var(--text2); border-bottom:2px solid transparent;
+    transition:all .2s; font-family:var(--mono);
+  }
+  .nav-tab:hover { color:var(--text); }
+  .nav-tab.active { color:var(--green); border-bottom-color:var(--green); }
+
+  /* ── MAIN LAYOUT ── */
+  .main { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+  .page { display:none; flex:1; overflow:hidden; }
+  .page.active { display:flex; flex-direction:column; overflow:hidden; }
+
+  /* ── SCROLLABLE CONTENT ── */
+  .scroll { overflow-y:auto; flex:1; padding:20px 24px; }
+  .scroll::-webkit-scrollbar { width:6px; }
+  .scroll::-webkit-scrollbar-track { background:var(--bg1); }
+  .scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* ── CARDS ── */
+  .card {
+    background:var(--bg1); border:1px solid var(--border2);
+    border-radius:8px; padding:20px; margin-bottom:16px;
+    position:relative; overflow:hidden;
+  }
+  .card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+  .card-title {
+    font-family:var(--display); font-size:13px; font-weight:600;
+    letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--text2); margin-bottom:16px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card-title .dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); }
+
+  /* ── STAT GRID ── */
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
+  .stat {
+    background:var(--bg2); border:1px solid var(--border2); border-radius:6px;
+    padding:14px 16px; position:relative; overflow:hidden;
+  }
+  .stat::after {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+    background:var(--green); opacity:.3;
+  }
+  .stat-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text3); margin-bottom:6px; }
+  .stat-value { font-size:20px; font-weight:700; font-family:var(--display); color:var(--text); line-height:1; }
+  .stat-value.green { color:var(--green); text-shadow:0 0 10px rgba(57,211,83,.3); }
+  .stat-value.cyan  { color:var(--cyan); }
+  .stat-value.yellow{ color:var(--yellow); }
+  .stat-value.red   { color:var(--red); }
+
+  /* ── STATUS INDICATOR ── */
+  .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .status-dot.online   { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 2s infinite; }
+  .status-dot.offline  { background:var(--red); }
+  .status-dot.connecting { background:var(--yellow); animation:blink 1s infinite; }
+  .status-dot.unknown  { background:var(--text3); }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; box-shadow:0 0 8px var(--green); }
+    50%      { opacity:.7; box-shadow:0 0 16px var(--green); }
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── CONTROLS ── */
+  .controls { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn {
+    display:inline-flex; align-items:center; gap:8px;
+    padding:9px 20px; border-radius:5px; border:1px solid;
+    font-family:var(--mono); font-size:12px; font-weight:600;
+    letter-spacing:.5px; text-transform:uppercase; cursor:pointer;
+    transition:all .15s; background:transparent;
+  }
+  .btn-start  { border-color:var(--green); color:var(--green); }
+  .btn-start:hover  { background:var(--green); color:var(--bg0); box-shadow:0 0 16px rgba(57,211,83,.4); }
+  .btn-stop   { border-color:var(--red); color:var(--red); }
+  .btn-stop:hover   { background:var(--red); color:#fff; }
+  .btn-restart{ border-color:var(--yellow); color:var(--yellow); }
+  .btn-restart:hover{ background:var(--yellow); color:var(--bg0); }
+  .btn-refresh{ border-color:var(--border); color:var(--text2); }
+  .btn-refresh:hover{ border-color:var(--cyan); color:var(--cyan); }
+  .btn-save   { border-color:var(--purple); color:var(--purple); }
+  .btn-save:hover   { background:var(--purple); color:#fff; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
+
+  /* ── TERMINAL ── */
+  .terminal {
+    flex:1; overflow:hidden; display:flex; flex-direction:column;
+    background:var(--bg0); padding:0;
+  }
+  .terminal-header {
+    display:flex; align-items:center; gap:8px; padding:10px 16px;
+    background:var(--bg1); border-bottom:1px solid var(--border2);
+    flex-shrink:0;
+  }
+  .terminal-dot { width:12px; height:12px; border-radius:50%; }
+  .t-red { background:#ff5f56; }
+  .t-yellow { background:#ffbd2e; }
+  .t-green { background:#27c93f; }
+  .terminal-title { flex:1; text-align:center; font-size:11px; color:var(--text3); letter-spacing:1px; }
+  .terminal-body {
+    flex:1; overflow-y:auto; padding:12px 16px;
+    font-size:12px; line-height:1.6;
+  }
+  .terminal-body::-webkit-scrollbar { width:5px; }
+  .terminal-body::-webkit-scrollbar-track { background:var(--bg0); }
+  .terminal-body::-webkit-scrollbar-thumb { background:var(--border); }
+  .log-line { display:flex; gap:10px; padding:1px 0; }
+  .log-time  { color:var(--text3); flex-shrink:0; font-size:11px; }
+  .log-level { flex-shrink:0; font-weight:600; font-size:11px; width:54px; }
+  .log-level.INFO    { color:var(--cyan); }
+  .log-level.SUCCESS { color:var(--green); }
+  .log-level.WARNING { color:var(--yellow); }
+  .log-level.ERROR   { color:var(--red); }
+  .log-level.PING    { color:var(--purple); }
+  .log-msg   { color:var(--text); }
+  .terminal-cursor {
+    display:inline-block; width:8px; height:14px;
+    background:var(--green); vertical-align:middle;
+    margin-left:4px; animation:blink 1s infinite;
+  }
+
+  /* ── CONNECTION PAGE ── */
+  .form-group { margin-bottom:16px; }
+  .form-label { display:block; font-size:11px; letter-spacing:.8px; text-transform:uppercase; color:var(--text2); margin-bottom:6px; }
+  .form-input {
+    width:100%; background:var(--bg2); border:1px solid var(--border);
+    border-radius:5px; padding:9px 12px; color:var(--text);
+    font-family:var(--mono); font-size:13px; outline:none;
+    transition:border-color .2s;
+  }
+  .form-input:focus { border-color:var(--green); }
+  .form-row { display:grid; grid-template-columns:2fr 1fr; gap:12px; }
+
+  /* ── HEALTH BARS ── */
+  .health-item { margin-bottom:14px; }
+  .health-label { display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px; }
+  .health-label span:first-child { color:var(--text2); }
+  .health-bar { height:6px; background:var(--bg2); border-radius:3px; overflow:hidden; }
+  .health-fill { height:100%; border-radius:3px; transition:width .5s; }
+  .health-fill.green  { background:linear-gradient(90deg,var(--green-dim),var(--green)); }
+  .health-fill.cyan   { background:linear-gradient(90deg,var(--cyan-dim),var(--cyan)); }
+  .health-fill.yellow { background:var(--yellow); }
+  .health-fill.red    { background:var(--red); }
+
+  /* ── UPTIME CHART ── */
+  #uptimeChart { width:100%; height:80px; }
+
+  /* ── PING GRAPH ── */
+  .ping-graph { position:relative; height:100px; }
+  canvas#pingCanvas { width:100%; height:100%; }
+
+  /* ── NOTIFICATION ── */
+  .notif {
+    position:fixed; top:70px; right:20px; z-index:10000;
+    background:var(--bg2); border:1px solid var(--border);
+    border-left:3px solid var(--green);
+    border-radius:5px; padding:10px 16px;
+    font-size:12px; color:var(--text);
+    animation:slideIn .2s ease; max-width:300px;
+  }
+  @keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+
+  /* ── RECONNECT BADGE ── */
+  .reconnect-badge {
+    display:inline-block; background:var(--bg2);
+    border:1px solid var(--border); border-radius:100px;
+    padding:3px 10px; font-size:11px; color:var(--yellow);
+  }
+
+  /* ── LAYOUT HELPERS ── */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media(max-width:768px){.two-col{grid-template-columns:1fr;}}
+
+  /* ── UPTIME GLOW ── */
+  .uptime-glow {
+    font-family:var(--display); font-size:42px; font-weight:700;
+    color:var(--green); text-shadow:0 0 30px rgba(57,211,83,.5);
+    letter-spacing:2px; line-height:1;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <svg class="logo-icon" viewBox="0 0 28 28" fill="none">
+        <path d="M14 2L4 7v8c0 5.5 4.3 10.7 10 12 5.7-1.3 10-6.5 10-12V7L14 2z" fill="rgba(57,211,83,.15)" stroke="var(--green)" stroke-width="1.5"/>
+        <path d="M10 14l3 3 5-5" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      ATERNOS<span>GUARD</span>
+    </div>
+    <div class="header-status">
+      <div class="server-badge">
+        <b id="headerHost">yosef2903.aternos.me</b>:<b id="headerPort">39695</b>
+      </div>
+      <div>
+        <span class="status-dot unknown" id="headerDot"></span>
+        <span id="headerStatusText" style="font-size:12px;color:var(--text2)">Initializing...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAV -->
+  <nav>
+    <button class="nav-tab active" data-page="dashboard">⬡ Dashboard</button>
+    <button class="nav-tab" data-page="terminal">▸ Terminal</button>
+    <button class="nav-tab" data-page="connection">⚙ Connection</button>
+    <button class="nav-tab" data-page="health">◈ Health</button>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ─── DASHBOARD ─── -->
+    <div class="page active" id="page-dashboard">
+      <div class="scroll">
+
+        <!-- Stats -->
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="stat-label">Bot Status</div>
+            <div class="stat-value" id="statBotStatus">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Server Status</div>
+            <div class="stat-value" id="statServerStatus">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Uptime</div>
+            <div class="stat-value cyan" id="statUptime">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Reconnect Attempts</div>
+            <div class="stat-value yellow" id="statReconnects">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Last Ping</div>
+            <div class="stat-value" id="statLastPing" style="font-size:13px">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Bot Username</div>
+            <div class="stat-value cyan" id="statUsername" style="font-size:14px">—</div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>Bot Controls</div>
+          <div class="controls">
+            <button class="btn btn-start" id="btnStart" onclick="sendAction('start')">▶ Start Bot</button>
+            <button class="btn btn-stop" id="btnStop" onclick="sendAction('stop')">■ Stop Bot</button>
+            <button class="btn btn-restart" id="btnRestart" onclick="sendAction('restart')">↺ Restart</button>
+            <button class="btn btn-refresh" onclick="fetchStatus()">⟳ Refresh</button>
+          </div>
+        </div>
+
+        <!-- Server Info + Mini Log -->
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title"><span class="dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></span>Server Info</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+              <div style="display:flex;justify-content:space-between;padding:8px 10px;background:var(--bg2);border-radius:4px;">
+                <span style="color:var(--text2)">Host</span>
+                <span id="infoHost" style="color:var(--cyan)">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 10px;background:var(--bg2);border-radius:4px;">
+                <span style="color:var(--text2)">Port</span>
+                <span id="infoPort" style="color:var(--cyan)">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 10px;background:var(--bg2);border-radius:4px;">
+                <span style="color:var(--text2)">Reconnect Delay</span>
+                <span id="infoReconnect" style="color:var(--yellow)">—</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 10px;background:var(--bg2);border-radius:4px;">
+                <span style="color:var(--text2)">Ping Interval</span>
+                <span id="infoPing" style="color:var(--purple)">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="display:flex;flex-direction:column;">
+            <div class="card-title"><span class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></span>Live Activity</div>
+            <div id="miniLog" style="flex:1;overflow-y:auto;font-size:11px;line-height:1.8;max-height:140px;">
+              <span style="color:var(--text3)">Waiting for events...</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── TERMINAL ─── -->
+    <div class="page" id="page-terminal">
+      <div class="terminal">
+        <div class="terminal-header">
+          <span class="terminal-dot t-red"></span>
+          <span class="terminal-dot t-yellow"></span>
+          <span class="terminal-dot t-green"></span>
+          <span class="terminal-title">ATERNOS GUARD — LIVE CONSOLE</span>
+          <button class="btn btn-refresh" style="padding:4px 12px;font-size:10px;" onclick="clearLogs()">CLEAR</button>
+        </div>
+        <div class="terminal-body" id="terminalBody">
+          <div class="log-line">
+            <span class="log-level INFO">INFO</span>
+            <span class="log-msg">Aternos Guard initialized. Awaiting connection...<span class="terminal-cursor"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── CONNECTION SETTINGS ─── -->
+    <div class="page" id="page-connection">
+      <div class="scroll">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>Server Configuration</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Server Host</label>
+              <input class="form-input" id="cfgHost" placeholder="example.aternos.me"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Server Port</label>
+              <input class="form-input" id="cfgPort" placeholder="25565" type="number"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Bot Username</label>
+              <input class="form-input" id="cfgUsername" placeholder="AternosGuard"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Minecraft Version</label>
+              <input class="form-input" id="cfgVersion" placeholder="1.20.1"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Reconnect Delay (ms)</label>
+              <input class="form-input" id="cfgReconnect" placeholder="10000" type="number"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ping Interval (ms)</label>
+              <input class="form-input" id="cfgPingInterval" placeholder="60000" type="number"/>
+            </div>
+          </div>
+          <div class="controls">
+            <button class="btn btn-save" onclick="saveConfig()">💾 Save Config</button>
+            <button class="btn btn-restart" onclick="saveAndRestart()">↺ Save & Restart</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--yellow);box-shadow:0 0 6px var(--yellow)"></span>Aternos Tips</div>
+          <div style="font-size:12px;line-height:2;color:var(--text2);">
+            <div>• Make sure your Aternos server is <b style="color:var(--green)">started</b> in the Aternos panel first</div>
+            <div>• The bot uses <b style="color:var(--cyan)">offline mode</b> — ensure your server allows it</div>
+            <div>• Aternos servers may have <b style="color:var(--yellow)">whitelist</b> — add your bot username</div>
+            <div>• If kicked, try changing the bot <b style="color:var(--purple)">username</b></div>
+            <div>• Set reconnect delay to <b style="color:var(--cyan)">15000ms</b> or more for Aternos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── HEALTH ─── -->
+    <div class="page" id="page-health">
+      <div class="scroll">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>System Health</div>
+            <div class="health-item">
+              <div class="health-label">
+                <span>Bot Connectivity</span>
+                <span id="hBotPct" style="color:var(--green)">—</span>
+              </div>
+              <div class="health-bar"><div class="health-fill green" id="hBotBar" style="width:0%"></div></div>
+            </div>
+            <div class="health-item">
+              <div class="health-label">
+                <span>Server Reachability</span>
+                <span id="hSrvPct" style="color:var(--cyan)">—</span>
+              </div>
+              <div class="health-bar"><div class="health-fill cyan" id="hSrvBar" style="width:0%"></div></div>
+            </div>
+            <div class="health-item">
+              <div class="health-label">
+                <span>Stability Score</span>
+                <span id="hStabPct" style="color:var(--yellow)">—</span>
+              </div>
+              <div class="health-bar"><div class="health-fill yellow" id="hStabBar" style="width:0%"></div></div>
+            </div>
+          </div>
+
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+            <div class="card-title" style="margin-bottom:0"><span class="dot"></span>Total Uptime</div>
+            <div class="uptime-glow" id="healthUptime">00:00:00</div>
+            <div style="font-size:11px;color:var(--text3);">hh:mm:ss since last connect</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></span>Stats Summary</div>
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="stat-label">Reconnect Attempts</div>
+              <div class="stat-value yellow" id="hReconn">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Current Bot Status</div>
+              <div class="stat-value" id="hBotStatus">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Last Keep-Alive</div>
+              <div class="stat-value" id="hLastPing" style="font-size:12px">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Auto Reconnect</div>
+              <div class="stat-value green">ENABLED</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></span>Connection Log (last 5)</div>
+          <div id="recentLogs" style="font-size:12px;line-height:2;color:var(--text2);">
+            No recent events.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .main -->
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// WebSocket
+// ─────────────────────────────────────────────
+const WS_URL = `ws://${location.host}`;
+let ws = null;
+let state = { botStatus:'stopped', serverStatus:'unknown', reconnectAttempts:0, lastPing:null, uptime:0, isRunning:false };
+const allLogs = [];
+
+function connectWS() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => console.log('WS connected');
+  ws.onmessage = e => handleWS(JSON.parse(e.data));
+  ws.onclose = () => setTimeout(connectWS, 2000);
+}
+
+function handleWS(msg) {
+  if (msg.type === 'init') {
+    msg.data.logs.forEach(addLogEntry);
+    updateState(msg.data);
+  } else if (msg.type === 'status') {
+    updateState(msg.data);
+  } else if (msg.type === 'log') {
+    addLogEntry(msg.data);
+  }
+}
+
+function sendAction(action) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ action }));
+  else fetch(`/api/${action}`, { method:'POST' });
+  showNotif(action.charAt(0).toUpperCase()+action.slice(1)+' command sent');
+}
+
+// ─────────────────────────────────────────────
+// State update
+// ─────────────────────────────────────────────
+function updateState(data) {
+  Object.assign(state, data);
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const s = state;
+  // Header
+  setStatusDot(document.getElementById('headerDot'), s.botStatus);
+  document.getElementById('headerStatusText').textContent = capitalize(s.botStatus);
+  if (s.config) {
+    document.getElementById('headerHost').textContent = s.config.host||'';
+    document.getElementById('headerPort').textContent = s.config.port||'';
+    document.getElementById('headerHost').textContent = s.config.host||'';
+  }
+
+  // Stats
+  const bs = document.getElementById('statBotStatus');
+  bs.textContent = capitalize(s.botStatus);
+  bs.className = 'stat-value ' + statusColor(s.botStatus);
+
+  const ss = document.getElementById('statServerStatus');
+  ss.textContent = capitalize(s.serverStatus);
+  ss.className = 'stat-value ' + statusColor(s.serverStatus);
+
+  document.getElementById('statUptime').textContent = fmtUptime(s.uptime||0);
+  document.getElementById('statReconnects').textContent = s.reconnectAttempts||0;
+  document.getElementById('statLastPing').textContent = s.lastPing ? fmtTime(s.lastPing) : '—';
+  if (s.config) document.getElementById('statUsername').textContent = s.config.username||'—';
+
+  // Info
+  if (s.config) {
+    document.getElementById('infoHost').textContent = s.config.host||'—';
+    document.getElementById('infoPort').textContent = s.config.port||'—';
+    document.getElementById('infoReconnect').textContent = s.config.reconnectDelay ? s.config.reconnectDelay+'ms' : '—';
+    document.getElementById('infoPing').textContent = s.config.pingInterval ? s.config.pingInterval+'ms' : '—';
+  }
+
+  // Health
+  document.getElementById('hReconn').textContent = s.reconnectAttempts||0;
+  const hbs = document.getElementById('hBotStatus');
+  hbs.textContent = capitalize(s.botStatus);
+  hbs.className = 'stat-value '+statusColor(s.botStatus);
+  document.getElementById('hLastPing').textContent = s.lastPing ? fmtTime(s.lastPing) : '—';
+  document.getElementById('healthUptime').textContent = fmtUptime(s.uptime||0);
+
+  const botPct = s.botStatus==='online' ? 100 : s.botStatus==='connecting'?50:0;
+  const srvPct = s.serverStatus==='online' ? 100 : s.serverStatus==='offline'?0:30;
+  const stab = Math.max(0, 100 - (s.reconnectAttempts||0)*10);
+  setBar('hBotBar','hBotPct', botPct, 'green');
+  setBar('hSrvBar','hSrvPct', srvPct, 'cyan');
+  setBar('hStabBar','hStabPct', stab, stab>60?'yellow':'red');
+
+  // Buttons
+  document.getElementById('btnStart').disabled = s.isRunning;
+  document.getElementById('btnStop').disabled = !s.isRunning;
+}
+
+function setBar(barId, pctId, pct, cls) {
+  document.getElementById(barId).style.width = pct+'%';
+  document.getElementById(pctId).textContent = pct+'%';
+  document.getElementById(barId).className = 'health-fill '+cls;
+}
+
+function setStatusDot(el, status) {
+  el.className = 'status-dot '+(status==='online'?'online':status==='connecting'?'connecting':status==='error'?'offline':'unknown');
+}
+
+// ─────────────────────────────────────────────
+// Logs
+// ─────────────────────────────────────────────
+function addLogEntry(entry) {
+  allLogs.push(entry);
+  if (allLogs.length > 500) allLogs.shift();
+
+  const tb = document.getElementById('terminalBody');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">${fmtTime(entry.time)}</span><span class="log-level ${entry.level}">${entry.level}</span><span class="log-msg">${escHtml(entry.message)}</span>`;
+  tb.appendChild(line);
+  if (tb.children.length > 300) tb.removeChild(tb.firstChild);
+  tb.scrollTop = tb.scrollHeight;
+
+  // Mini log
+  const ml = document.getElementById('miniLog');
+  const mini = document.createElement('div');
+  mini.style.cssText = 'font-size:11px;line-height:1.7;color:'+(entry.level==='ERROR'?'var(--red)':entry.level==='SUCCESS'?'var(--green)':entry.level==='WARNING'?'var(--yellow)':'var(--text2)');
+  mini.textContent = `${fmtTime(entry.time)} ${entry.message}`;
+  if (ml.firstChild && ml.firstChild.textContent === 'Waiting for events...') ml.innerHTML='';
+  ml.appendChild(mini);
+  if (ml.children.length > 8) ml.removeChild(ml.firstChild);
+  ml.scrollTop = ml.scrollHeight;
+
+  // Recent logs (health page)
+  updateRecentLogs();
+}
+
+function updateRecentLogs() {
+  const r = document.getElementById('recentLogs');
+  const recent = allLogs.slice(-5).reverse();
+  if (!recent.length) { r.textContent='No recent events.'; return; }
+  r.innerHTML = recent.map(l=>`<div style="color:${l.level==='ERROR'?'var(--red)':l.level==='SUCCESS'?'var(--green)':l.level==='WARNING'?'var(--yellow)':'var(--text2)'}">${fmtTime(l.time)} [${l.level}] ${escHtml(l.message)}</div>`).join('');
+}
+
+function clearLogs() {
+  document.getElementById('terminalBody').innerHTML='';
+}
+
+// ─────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────
+function fetchStatus() {
+  fetch('/api/status').then(r=>r.json()).then(d=>updateState(d));
+}
+
+function loadConfigForm() {
+  fetch('/api/config').then(r=>r.json()).then(d=>{
+    document.getElementById('cfgHost').value = d.host||'';
+    document.getElementById('cfgPort').value = d.port||'';
+    document.getElementById('cfgUsername').value = d.username||'';
+    document.getElementById('cfgVersion').value = d.version||'';
+    document.getElementById('cfgReconnect').value = d.reconnectDelay||'';
+    document.getElementById('cfgPingInterval').value = d.pingInterval||'';
+  });
+}
+
+function saveConfig() {
+  const body = {
+    host: document.getElementById('cfgHost').value,
+    port: document.getElementById('cfgPort').value,
+    username: document.getElementById('cfgUsername').value,
+    version: document.getElementById('cfgVersion').value,
+    reconnectDelay: document.getElementById('cfgReconnect').value,
+    pingInterval: document.getElementById('cfgPingInterval').value
+  };
+  fetch('/api/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(r=>r.json()).then(()=>showNotif('Configuration saved!'));
+}
+
+function saveAndRestart() {
+  const body = {
+    host: document.getElementById('cfgHost').value,
+    port: document.getElementById('cfgPort').value,
+    username: document.getElementById('cfgUsername').value,
+    version: document.getElementById('cfgVersion').value,
+    reconnectDelay: document.getElementById('cfgReconnect').value,
+    pingInterval: document.getElementById('cfgPingInterval').value
+  };
+  fetch('/api/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(()=>fetch('/api/restart',{method:'POST'}))
+    .then(()=>showNotif('Saved & restarted!'));
+}
+
+// ─────────────────────────────────────────────
+// Navigation
+// ─────────────────────────────────────────────
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('page-'+tab.dataset.page).classList.add('active');
+    if (tab.dataset.page==='connection') loadConfigForm();
+  });
+});
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+function fmtUptime(ms) {
+  const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+function pad(n){return n.toString().padStart(2,'0');}
+function fmtTime(iso){const d=new Date(iso);return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;}
+function statusColor(s){return s==='online'||s==='SUCCESS'?'green':s==='connecting'?'yellow':s==='error'||s==='offline'?'red':''}
+function capitalize(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function showNotif(msg) {
+  const n = document.createElement('div');
+  n.className='notif'; n.textContent=msg;
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(),2500);
+}
+
+// ─────────────────────────────────────────────
+// Uptime ticker
+// ─────────────────────────────────────────────
+let lastUptime = 0, lastUptimeFetch = Date.now();
+setInterval(() => {
+  if (state.isRunning && state.botStatus==='online') {
+    state.uptime += 1000;
+    document.getElementById('statUptime').textContent = fmtUptime(state.uptime);
+    document.getElementById('healthUptime').textContent = fmtUptime(state.uptime);
+  }
+}, 1000);
+
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
+connectWS();
+fetchStatus();
+</script>
+</body>
+</html>
