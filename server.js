@@ -239,6 +239,8 @@ let pingTimer = null;
 let reconnectTimer = null;
 let healthTimer = null;
 let keepAlivePulseCount = 0;
+let lastNetworkErrorSignature = null;
+let lastNetworkErrorAt = 0;
 
 const logs = [];
 const MAX_LOGS = 500;
@@ -256,6 +258,68 @@ function addLog(level, message) {
 
   broadcast({ type: "log", data: entry });
   console.log(`[${level}] ${message}`);
+}
+
+function isTransientNetworkError(err) {
+  if (!err) return false;
+
+  const code = String(err.code || "").toUpperCase();
+  const message = String(err.message || "").toLowerCase();
+
+  const transientCodes = new Set([
+    "ECONNRESET",
+    "EPIPE",
+    "ETIMEDOUT",
+    "ECONNABORTED",
+    "EHOSTUNREACH",
+    "ENETUNREACH",
+    "ECONNREFUSED"
+  ]);
+
+  if (transientCodes.has(code)) return true;
+
+  return (
+    message.includes("keepaliveerror") ||
+    message.includes("socket closed") ||
+    message.includes("connection reset") ||
+    message.includes("client timed out")
+  );
+}
+
+function dedupeNetworkError(source, err) {
+  const signature = `${source}|${err?.code || ""}|${err?.message || ""}`;
+  const now = Date.now();
+
+  if (signature === lastNetworkErrorSignature && now - lastNetworkErrorAt < 4000) {
+    return true;
+  }
+
+  lastNetworkErrorSignature = signature;
+  lastNetworkErrorAt = now;
+  return false;
+}
+
+function handleConnectionFault(source, err) {
+  if (dedupeNetworkError(source, err)) return;
+
+  markBotActivity();
+  stopPingTimer();
+
+  if (isRunning) {
+    botStatus = "error";
+  }
+
+  if (err?.code === "ECONNREFUSED") {
+    serverStatus = "offline";
+    addLog("WARNING", "Server appears offline (connection refused)");
+  }
+
+  addLog("ERROR", `${source}: ${err?.message || "unknown network error"}`);
+  broadcastStatus();
+
+  if (isRunning) {
+    queueReconnect(err?.code || source);
+  }
 }
 
 function actorLabel(actor) {
@@ -464,18 +528,7 @@ function createBot() {
   });
 
   bot.on("error", (err) => {
-    markBotActivity();
-    stopPingTimer();
-    botStatus = "error";
-
-    if (err && err.code === "ECONNREFUSED") {
-      serverStatus = "offline";
-      addLog("WARNING", "Server appears offline (connection refused)");
-    }
-
-    addLog("ERROR", `Bot error: ${err.message}`);
-    broadcastStatus();
-    queueReconnect(err.code || "bot error");
+    handleConnectionFault("Bot error", err);
   });
 
   bot.on("end", (reason) => {
@@ -494,10 +547,32 @@ function createBot() {
   });
 
   if (bot._client && typeof bot._client.on === "function") {
+    bot._client.on("error", (err) => {
+      handleConnectionFault("Protocol client error", err);
+    });
+
     bot._client.on("keep_alive", () => {
       markBotActivity();
       lastPing = new Date().toISOString();
     });
+
+    if (bot._client.socket && typeof bot._client.socket.on === "function") {
+      bot._client.socket.on("error", (err) => {
+        handleConnectionFault("Socket error", err);
+      });
+    }
+
+    if (bot._client.serializer && typeof bot._client.serializer.on === "function") {
+      bot._client.serializer.on("error", (err) => {
+        handleConnectionFault("Serializer error", err);
+      });
+    }
+
+    if (bot._client.deserializer && typeof bot._client.deserializer.on === "function") {
+      bot._client.deserializer.on("error", (err) => {
+        handleConnectionFault("Deserializer error", err);
+      });
+    }
   }
 }
 
@@ -813,6 +888,23 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Aternos Guard running on http://localhost:${PORT}`);
   addLog("INFO", `Server started on port ${PORT}`);
+});
+
+process.on("uncaughtException", (err) => {
+  if (isTransientNetworkError(err)) {
+    handleConnectionFault("Uncaught transient error", err);
+    return;
+  }
+  addLog("ERROR", `Uncaught exception: ${err?.stack || err?.message || "unknown"}`);
+});
+
+process.on("unhandledRejection", (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  if (isTransientNetworkError(err)) {
+    handleConnectionFault("Unhandled transient rejection", err);
+    return;
+  }
+  addLog("ERROR", `Unhandled rejection: ${err.message}`);
 });
 
 setTimeout(() => {
