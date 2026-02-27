@@ -1,110 +1,76 @@
-# 🛡 Aternos Guard — 24/7 Minecraft Uptime Bot
+﻿# Aternos Guard
 
-A full web application that keeps your Aternos Minecraft server awake 24/7 using a Mineflayer bot with auto-reconnect, live dashboard, and WebSocket real-time updates.
+A web console that keeps a Mineflayer guard bot connected to your Aternos Minecraft server with auto-reconnect, live logs, and role-based access control.
 
----
+## Features
+- Auto-start + auto-reconnect bot lifecycle
+- Health monitor for stale connections
+- Real-time WebSocket dashboard and terminal logs
+- Team access roles:
+  - `admin`: full control (bot + config + users)
+  - `operator`: start/stop/restart + read status
+  - `viewer`: read-only status and logs
+- Token-based login for panel access
 
-## ✨ Features
-- **Modern dark dashboard** with live stats
-- **Mineflayer bot** joins and stays in your server
-- **Auto-reconnect** — reconnects every 10s if kicked
-- **Keep-alive pings** every 60s to prevent idle kick
-- **Live terminal** with real-time logs via WebSocket
-- **Settings panel** — change host, port, username, intervals
-- **Health monitor** — uptime, stability score, connection bars
-- **REST API** — `/api/start`, `/api/stop`, `/api/restart`, etc.
-
----
-
-## 🚀 Quick Start
-
+## Quick Start
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Start
 npm start
+```
+Then open `http://localhost:3000`.
 
-# 3. Open browser
-# http://localhost:3000
+## First Login
+On first run, if no users are in `config.json`, the server creates an initial admin user and prints the admin token in logs.
+
+You can also set your own initial admin token with:
+```bash
+ADMIN_TOKEN=admin_mysecuretoken npm start
 ```
 
----
+## Config File
+`config.json` is auto-created and stores bot settings + users.
 
-## ⚙️ Configuration
-
-Edit `config.json` (auto-created on first run) or use the Settings panel:
-
+Example:
 ```json
 {
-  "host": "yosef2903.aternos.me",
-  "port": 39695,
+  "host": "yourserver.aternos.me",
+  "port": 25565,
   "username": "AternosGuard",
-  "reconnectDelay": 10000,
-  "pingInterval": 60000,
-  "version": "1.20.1"
+  "reconnectDelay": 15000,
+  "pingInterval": 45000,
+  "version": "1.20.1",
+  "users": []
 }
 ```
 
----
+## API (authenticated)
+All endpoints below require `Authorization: Bearer <sessionToken>` after login.
 
-## 🌐 Deploy on Render (Free)
+Auth:
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/me`
 
-1. Push to GitHub
-2. Go to [render.com](https://render.com) → New Web Service
-3. Connect repo, set:
-   - **Build Command:** `npm install`
-   - **Start Command:** `node server.js`
-4. Deploy — it will auto-restart if it crashes
+Bot:
+- `GET /api/status`
+- `GET /api/logs`
+- `POST /api/start`
+- `POST /api/stop`
+- `POST /api/restart`
 
----
+Config:
+- `GET /api/config`
+- `POST /api/config`
 
-## 🚂 Deploy on Railway
+Users:
+- `GET /api/users`
+- `POST /api/users`
+- `PATCH /api/users/:id`
+- `DELETE /api/users/:id`
 
-```bash
-# Install Railway CLI
-npm i -g @railway/cli
+## Render Notes
+Use:
+- Build Command: `npm install`
+- Start Command: `node server.js` (or `public` if you are using the previous compatibility shim)
 
-# Login and deploy
-railway login
-railway init
-railway up
-```
-
----
-
-## 🔁 Deploy on Replit
-
-1. Upload all files to a new Replit Node.js project
-2. Click **Run**
-3. Enable **"Always On"** in Replit settings
-
----
-
-## 📡 API Endpoints
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | /api/status | Bot & server status |
-| GET | /api/logs | Recent logs |
-| POST | /api/start | Start the bot |
-| POST | /api/stop | Stop the bot |
-| POST | /api/restart | Restart the bot |
-| GET | /api/config | Get config |
-| POST | /api/config | Update config |
-
----
-
-## 🎮 Aternos Tips
-
-- Start your Aternos server **before** starting the bot
-- Your server must allow **offline mode** (cracked)
-- Add the bot username to your **whitelist** if enabled
-- Set reconnect delay to `15000`+ ms for Aternos stability
-
----
-
-## 📦 Stack
-- **Backend:** Node.js, Express, Mineflayer, ws
-- **Frontend:** HTML/CSS/JS with WebSockets
-- **Bot:** Mineflayer (offline auth)
+For true 24/7 uptime, use a paid instance or a background worker setup.
