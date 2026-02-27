@@ -119,6 +119,33 @@ function loadConfig() {
     console.log(`[AUTH] Initial admin token: ${initialToken}`);
   }
 
+  const forcedAdminToken = String(process.env.ADMIN_TOKEN || "").trim();
+  if (forcedAdminToken) {
+    const userWithForcedToken = cfg.users.find((user) => user.token === forcedAdminToken);
+
+    if (userWithForcedToken) {
+      userWithForcedToken.role = "admin";
+    } else {
+      const preferredAdmin = cfg.users.find((user) => user.name === "Owner") || cfg.users.find((user) => user.role === "admin");
+
+      if (preferredAdmin) {
+        preferredAdmin.role = "admin";
+        preferredAdmin.token = forcedAdminToken;
+      } else {
+        cfg.users.unshift({
+          id: crypto.randomUUID(),
+          name: "Owner",
+          role: "admin",
+          token: forcedAdminToken,
+          createdAt: new Date().toISOString(),
+          lastLoginAt: null
+        });
+      }
+    }
+
+    console.log("[AUTH] ADMIN_TOKEN is enforced for admin login.");
+  }
+
   return cfg;
 }
 
