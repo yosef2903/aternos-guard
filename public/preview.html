@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aternos Guard Preview</title>
+<style>
+  :root {
+    --bg: #0a1220;
+    --bg2: #111d32;
+    --line: #2d4564;
+    --text: #eef6ff;
+    --muted: #97abc5;
+    --blue: #39baf7;
+    --green: #26cc7d;
+    --amber: #f0b65f;
+    --red: #ff6674;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    color: var(--text);
+    background: radial-gradient(circle at top left, rgba(57, 186, 247, 0.15), transparent 45%), linear-gradient(180deg, #091221, #060d17);
+  }
+  .shell {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .card {
+    background: linear-gradient(180deg, rgba(17, 30, 49, 0.95), rgba(11, 20, 34, 0.95));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  h1, h2 {
+    margin: 0 0 8px;
+  }
+  .muted {
+    color: var(--muted);
+    margin: 0;
+  }
+  .grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kv {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(13, 24, 40, 0.85);
+  }
+  .kv .k {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .kv .v {
+    font-size: 18px;
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  .v.online { color: var(--green); }
+  .v.connecting { color: var(--amber); }
+  .v.error, .v.offline, .v.stopped { color: var(--red); }
+  .row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  input, button {
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    padding: 10px 12px;
+    font: inherit;
+  }
+  input {
+    flex: 1;
+    min-width: 220px;
+    background: #0d1a2d;
+    color: var(--text);
+  }
+  button {
+    cursor: pointer;
+    color: white;
+    background: #1d3552;
+  }
+  button.primary { background: linear-gradient(180deg, #43c1ff, #218fce); border-color: transparent; }
+  button.good { background: linear-gradient(180deg, #35d98d, #1da567); border-color: transparent; }
+  button.danger { background: linear-gradient(180deg, #ff7782, #d94755); border-color: transparent; }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .pill {
+    display: inline-block;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-right: 6px;
+  }
+  .mono { font-family: Consolas, "Courier New", monospace; }
+  .logs {
+    margin-top: 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #050c15;
+    max-height: 320px;
+    overflow: auto;
+    padding: 10px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .line {
+    display: grid;
+    grid-template-columns: 90px 90px 1fr;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .time { color: #7f93a9; }
+  .level.INFO { color: #77c8ff; }
+  .level.SUCCESS { color: #34d389; }
+  .level.WARNING { color: #f4c26f; }
+  .level.ERROR { color: #ff7b88; }
+  .level.PING { color: #b5d0ea; }
+  .level.SECURITY { color: #9fddff; }
+  #loginBox { display: block; }
+  #appBox { display: none; }
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    .line { grid-template-columns: 70px 70px 1fr; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <section id="loginBox" class="card">
+      <h1>Project Preview</h1>
+      <p class="muted">Lightweight preview before full launch. Sign in with a user token.</p>
+      <div class="row">
+        <input id="tokenInput" class="mono" placeholder="admin_xxx or usr_xxx" />
+        <button id="loginBtn" class="primary">Sign In</button>
+      </div>
+    </section>
+
+    <section id="appBox">
+      <div class="card">
+        <h2>Aternos Guard Preview Panel</h2>
+        <p class="muted">
+          <span id="rolePill" class="pill">role</span>
+          <span id="statusPill" class="pill">status</span>
+          <a href="/index.html" style="color: var(--blue);">Open full panel</a>
+        </p>
+        <div class="row">
+          <button id="startBtn" class="good">Start</button>
+          <button id="stopBtn" class="danger">Stop</button>
+          <button id="restartBtn">Restart</button>
+          <button id="refreshBtn">Refresh</button>
+          <button id="logoutBtn">Log Out</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="grid">
+          <div class="kv"><div class="k">Bot Status</div><div id="botStatus" class="v">-</div></div>
+          <div class="kv"><div class="k">Server Status</div><div id="serverStatus" class="v">-</div></div>
+          <div class="kv"><div class="k">Uptime</div><div id="uptime" class="v mono">00:00:00</div></div>
+          <div class="kv"><div class="k">Host</div><div id="host" class="v mono" style="font-size:13px;">-</div></div>
+          <div class="kv"><div class="k">Username</div><div id="username" class="v mono" style="font-size:13px;">-</div></div>
+          <div class="kv"><div class="k">Last Ping</div><div id="lastPing" class="v mono" style="font-size:13px;">-</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:18px;">Recent Logs</h2>
+        <div id="logs" class="logs"></div>
+      </div>
+    </section>
+  </div>
+
+<script>
+const auth = { sessionToken: localStorage.getItem("ag_preview_session") || "", permissions: [], user: null };
+let state = null;
+let pollTimer = null;
+
+function $(id) { return document.getElementById(id); }
+function has(permission) { return auth.permissions.includes(permission); }
+function clsFor(status) {
+  if (status === "online") return "online";
+  if (status === "connecting") return "connecting";
+  if (status === "error" || status === "offline" || status === "stopped") return "error";
+  return "";
+}
+function fmtTime(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleTimeString();
+}
+function fmtUptime(ms) {
+  const total = Math.max(0, Math.floor((ms || 0) / 1000));
+  const h = String(Math.floor(total / 3600)).padStart(2, "0");
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+function notify(message) {
+  console.log("[preview]", message);
+}
+async function callApi(path, options = {}) {
+  const headers = {};
+  if (auth.sessionToken) headers.Authorization = `Bearer ${auth.sessionToken}`;
+  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(path, {
+    method: options.method || "GET",
+    headers,
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `${res.status} ${res.statusText}`);
+  return data;
+}
+async function login() {
+  const token = $("tokenInput").value.trim();
+  if (!token) return;
+
+  try {
+    const data = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token })
+    }).then(async (r) => {
+      const payload = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(payload.message || "Login failed");
+      return payload;
+    });
+
+    auth.sessionToken = data.sessionToken;
+    auth.permissions = data.permissions || [];
+    auth.user = data.user || null;
+    localStorage.setItem("ag_preview_session", auth.sessionToken);
+
+    $("rolePill").textContent = `${(auth.user?.role || "unknown").toUpperCase()}`;
+    $("loginBox").style.display = "none";
+    $("appBox").style.display = "block";
+    gateButtons();
+
+    await refreshAll();
+    startPolling();
+  } catch (err) {
+    alert(err.message || "Login failed");
+  }
+}
+async function restoreSession() {
+  if (!auth.sessionToken) return;
+  try {
+    const me = await callApi("/api/me");
+    auth.permissions = me.permissions || [];
+    auth.user = me.user || null;
+    $("rolePill").textContent = `${(auth.user?.role || "unknown").toUpperCase()}`;
+    $("loginBox").style.display = "none";
+    $("appBox").style.display = "block";
+    gateButtons();
+    await refreshAll();
+    startPolling();
+  } catch {
+    localStorage.removeItem("ag_preview_session");
+    auth.sessionToken = "";
+  }
+}
+function gateButtons() {
+  const canControl = has("bot:control");
+  $("startBtn").disabled = !canControl;
+  $("stopBtn").disabled = !canControl;
+  $("restartBtn").disabled = !canControl;
+}
+function renderStatus(data) {
+  state = data;
+  $("botStatus").textContent = data.botStatus || "-";
+  $("botStatus").className = `v ${clsFor(data.botStatus)}`;
+  $("serverStatus").textContent = data.serverStatus || "-";
+  $("serverStatus").className = `v ${clsFor(data.serverStatus)}`;
+  $("uptime").textContent = fmtUptime(data.uptime || 0);
+  $("host").textContent = `${data.config?.host || "-"}:${data.config?.port || "-"}`;
+  $("username").textContent = data.config?.username || "-";
+  $("lastPing").textContent = fmtTime(data.lastPing);
+  $("statusPill").textContent = `${data.botStatus || "unknown"} / ${data.serverStatus || "unknown"}`;
+}
+function renderLogs(logs) {
+  const box = $("logs");
+  box.innerHTML = "";
+  logs.forEach((entry) => {
+    const line = document.createElement("div");
+    line.className = "line";
+    line.innerHTML = `
+      <span class="time">${fmtTime(entry.time)}</span>
+      <span class="level ${entry.level}">${entry.level}</span>
+      <span>${(entry.message || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span>
+    `;
+    box.appendChild(line);
+  });
+}
+async function refreshAll() {
+  try {
+    const [status, logs] = await Promise.all([
+      callApi("/api/status"),
+      callApi("/api/logs?limit=80")
+    ]);
+    renderStatus(status);
+    renderLogs(Array.isArray(logs) ? logs : []);
+  } catch (err) {
+    notify(err.message || "Refresh failed");
+  }
+}
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refreshAll, 5000);
+}
+async function doAction(action) {
+  try {
+    await callApi(`/api/${action}`, { method: "POST" });
+    await refreshAll();
+  } catch (err) {
+    alert(err.message || `Failed: ${action}`);
+  }
+}
+function logout() {
+  localStorage.removeItem("ag_preview_session");
+  auth.sessionToken = "";
+  auth.permissions = [];
+  auth.user = null;
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  $("appBox").style.display = "none";
+  $("loginBox").style.display = "block";
+}
+
+$("loginBtn").addEventListener("click", login);
+$("tokenInput").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
+$("refreshBtn").addEventListener("click", refreshAll);
+$("startBtn").addEventListener("click", () => doAction("start"));
+$("stopBtn").addEventListener("click", () => doAction("stop"));
+$("restartBtn").addEventListener("click", () => doAction("restart"));
+$("logoutBtn").addEventListener("click", logout);
+
+restoreSession();
+</script>
+</body>
+</html>
