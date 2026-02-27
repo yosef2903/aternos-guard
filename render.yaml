@@ -2,7 +2,7 @@ services:
   - type: web
     name: aternos-guard
     env: node
-    buildCommand: npm install
+    buildCommand: npm pkg delete scripts.postinstall || true && npm install
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
