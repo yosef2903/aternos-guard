@@ -6,6 +6,9 @@ A web console that keeps a Mineflayer guard bot connected to your Aternos Minecr
 - Auto-start + auto-reconnect bot lifecycle
 - Health monitor for stale connections
 - Real-time WebSocket dashboard and terminal logs
+- Secondary lightweight panels:
+  - `/preview.html` (MVP preview)
+  - `/sidekick.html` (new secondary add-on)
 - Team access roles:
   - `admin`: full control (bot + config + users)
   - `operator`: start/stop/restart + read status

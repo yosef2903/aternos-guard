@@ -13,6 +13,14 @@ const wss = new WebSocket.Server({ server });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+app.get("/sidekick", (req, res) => {
+  res.redirect(302, "/sidekick.html");
+});
+
+app.get("/preview", (req, res) => {
+  res.redirect(302, "/preview.html");
+});
+
 const CONFIG_FILE = path.join(__dirname, "config.json");
 const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
