@@ -77,3 +77,8 @@ Use:
 - Start Command: `node server.js` (or `public` if you are using the previous compatibility shim)
 
 For true 24/7 uptime, use a paid instance or a background worker setup.
+
+## Related Concept: Safe Minecraft Launcher
+A new product requirements draft has been added for a secure, malware-free custom launcher inspired by TLauncher-style convenience.
+
+- See `docs/safe-launcher-prd.md` for feature scope, architecture proposal, and security requirements.
